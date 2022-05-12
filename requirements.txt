@@ -1,0 +1,14 @@
+pandas==1.4.2
+numpy==1.22.3
+transformers==4.18.0
+datasets==2.1.0
+tokenizers==0.12.1
+redis
+tqdm
+fire
+scikit-learn==1.0.2
+scipy==1.8.0
+# torch==1.11.0
+grpcio
+grpcio-tools
+pytest

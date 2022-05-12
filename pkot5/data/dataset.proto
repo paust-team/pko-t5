@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package dataset;
+
+service LargeCorpusDataset {
+  rpc Init(InitRequest) returns (InitResponse);
+  rpc Read(ReadRequest) returns (stream ReadResponse);
+}
+
+message ReadRequest {
+  int64 rank = 1;
+}
+
+message ReadResponse {
+  repeated int64 input_ids = 2;
+}
+
+message InitRequest {
+  int64 world_size = 1;
+  int64 seed = 2;
+}
+
+message InitResponse {
+}
