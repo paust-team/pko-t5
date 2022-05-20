@@ -60,3 +60,22 @@ print(f"loss={outputs.loss} logits={outputs.logits}")
 | large | 61.53/64.94 | 70.15/74.20 |
 
 title 을 포함했을 때 성능이 좀 더 좋지만 그에 따라 sequence length 가 늘어났습니다.
+
+## License
+PAUST에서 만든 pko-t5는 [MIT license](https://github.com/paust-team/pko-t5/blob/main/LICENSE) 하에 공개되어 있습니다.
+
+## References
+- [Google T5 v1.1](https://github.com/google-research/text-to-text-transfer-transformer/blob/main/released_checkpoints.md)
+- [Transformers](https://github.com/huggingface/transformers)
+
+## Citation
+```bibtex
+@software{paust_pkot5_v1,
+  author = {Dennis Park},
+  month = {5},
+  title = {pko-t5: PAUST Korean T5 for text-to-text unified framework},
+  url = {https://github.com/paust-team/pko-t5},
+  version = {1.0},
+  year = {2022}
+}
+```
