@@ -5,7 +5,7 @@ default_args = dict(
     data_seed=2205141535,
     learning_rate=1e-2,
     max_steps=1000000,
-    per_device_train_batch_size=2,
+    per_device_train_batch_size=2,  # total_batch_size = 8 nodes * per_device_train_batch_size * gradient_accumulation_steps  => 256
     gradient_accumulation_steps=16,
 
     evaluation_strategy=IntervalStrategy.NO,

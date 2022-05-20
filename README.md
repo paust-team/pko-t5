@@ -16,7 +16,35 @@ pko-t5 를 사용하실 때는 실제 task 에 파인튜닝하여 사용하시�
 ## Usage
 transformers 의 API 를 사용하여 접근 가능합니다. tokenizer 를 사용할때는 `T5Tokenizer` 가 아니라 `T5TokenizerFast` 를 사용해주십시오. model 은 T5ForConditionalGeneration 를 그대로 활용하시면 됩니다.
 
-### Example
+### Pre-training Example
+- Single-node pre-training
+```bash
+python3 -m torch.distributed.launch \
+  --use_env \
+  --nproc_per_node 8
+  --logidr {specific log directory}
+  -m pkot5.pretraining \
+  --grpc_endpoint <grpc_endpoint>
+  --model_size <model_size>  # ex: small, base, large
+  --resume_checkpoint <ckpt_step>  # ex: 200000
+```
+
+- multi-node pre-training
+```bash
+python3 -m torch.distributed.launch \
+  --use_env \
+  --nproc_per_node 8
+  --nnode <num nodes>
+  --node_rank <node_rank>
+  --master_addr <master_addr>  # ex: node 0
+  --logidr {specific log directory}
+  -m pkot5.pretraining \
+  --grpc_endpoint <grpc_endpoint>
+  --model_size <model_size>  # ex: small, base, large
+  --resume_checkpoint <ckpt_step>  # ex: 200000
+```
+
+### Fine-tuning Example
 ```python
 from transformers import T5TokenizerFast, T5ForConditionalGeneration
 

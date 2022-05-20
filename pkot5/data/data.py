@@ -50,7 +50,7 @@ class DataCollatorForT5MLM(object):
             input_length: int = 512,
             target_length: int = 114,
             max_sentinel_ids: int = 100,
-            prefix: Optional[str] = None
+            prefix: Optional[str] = "fill: "
     ):
         self.tokenizer = tokenizer
         self.noise_density = noise_density
