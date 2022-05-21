@@ -51,7 +51,7 @@ from transformers import T5TokenizerFast, T5ForConditionalGeneration
 tokenizer = T5TokenizerFast.from_pretrained('paust/pko-t5-base')
 model = T5ForConditionalGeneration.from_pretrained('paust/pko-t5-base')
 
-input_ids = tokenizer(["nsmc sentence: 당신의 이름은 무엇인가요?"]).input_ids
+input_ids = tokenizer(["qa question: 당신의 이름은 무엇인가요?"]).input_ids
 labels = tokenizer(["T5 입니다."]).input_ids
 outputs = model(input_ids=input_ids, labels=labels)
 
