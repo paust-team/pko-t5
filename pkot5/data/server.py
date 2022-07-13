@@ -54,7 +54,7 @@ class LargeCorpusReader(object):
 
 class LargeCorpusDatasetServicerImpl(LargeCorpusDatasetServicer):
     def __init__(self, model_path, corpus_dir):
-        self.tokenizer = T5TokenizerFast.from_pretrained(model_path, unk_token='<pad>')
+        self.tokenizer = T5TokenizerFast.from_pretrained(model_path)
         self.corpus_dir = corpus_dir
 
         self.reader = LargeCorpusReader(self.tokenizer, self.corpus_dir)

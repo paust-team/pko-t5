@@ -1,3 +1,4 @@
+import copy
 import functools
 import pickle
 import queue
@@ -20,6 +21,9 @@ from torch import distributed as dist
 
 from .dataset_pb2_grpc import LargeCorpusDatasetStub
 from . import dataset_pb2 as pb
+
+
+NUM_EXTRA_IDS = 256
 
 
 class DataCollatorForT5MLM(object):
@@ -238,3 +242,133 @@ class LargeCorpusDatasetFromServer(IterableDataset):
 
     def __del__(self):
         self.stop_worker = True
+
+
+class LargeCorpusDatasetFromServerV2(IterableDataset):
+    def __init__(self, tokenizer, grpc_endpoint, seed):
+        channel = grpc.insecure_channel(grpc_endpoint)
+        self.stub = LargeCorpusDatasetStub(channel)
+
+        self.context = queue.Queue(maxsize=10)
+        self.stop_worker = False
+
+        self.prefix = tokenizer("fill: ", add_special_tokens=False).input_ids
+        self.extra_ids = [tokenizer.convert_tokens_to_ids(f'<extra_id_{i}') for i in range(NUM_EXTRA_IDS)]
+        self.eos_token_id = tokenizer.eos_token_id
+
+        if dist.get_rank() == 0:
+            self.stub.Init(pb.InitRequest(world_size=dist.get_world_size(), seed=seed))
+        dist.barrier()
+
+    def _get_from_server(self):
+        request = pb.ReadRequest(rank=dist.get_rank())
+        for response in self.stub.Read(request):
+            if self.stop_worker:
+                break
+            input_ids = response.input_ids
+            while not self.stop_worker:
+                try:
+                    self.context.put_nowait(input_ids)
+                    break
+                except queue.Full:
+                    time.sleep(0.01)
+                    continue
+
+    def __iter__(self):
+        max_len = 564
+
+        self.stop_worker = False
+        worker = threading.Thread(target=self._get_from_server)
+        worker.start()
+        try:
+            token_ids = []
+            while worker.is_alive():
+                try:
+                    ids = self.context.get_nowait()
+                except queue.Empty:
+                    time.sleep(0.01)
+                    continue
+
+                token_ids += ids
+                while len(token_ids) > max_len:
+                    data = self._fill_in_the_blank(token_ids[:max_len])
+                    yield {
+                        'input_ids': self.prefix + data['inputs'] + [self.eos_token_id],
+                        'attention_mask': [1] * len(data),
+                        'labels': data['targets'] + [self.eos_token_id],
+                    }
+                    token_ids = token_ids[max_len:]
+        finally:
+            self.stop_worker = True
+
+    def __del__(self):
+        self.stop_worker = True
+
+    def _fill_in_the_blank(self, words: List[int]):
+        mask_id = -1
+
+        min_prob = 1 / (len(words) + 1)
+        max_prob = 1 / 2
+        inputs = copy.deepcopy(words)
+        targets = words
+        for i in range(len(words)):
+            prob = random.random()
+            if min_prob < prob < max_prob:
+                inputs[i] = mask_id
+            else:
+                targets[i] = mask_id
+
+        def merge_mask(words_):
+            mask_spans = []
+            begin, end = None, None
+            for i, w in enumerate(words_):
+                if w == mask_id:
+                    if begin is None:
+                        begin = i
+                    end = i + 1
+                else:
+                    if end is not None:
+                        mask_spans.append((begin, end))
+                        begin, end = None, None
+            if begin is not None and end is not None:
+                mask_spans.append((begin, end))
+
+            new_words_ = []
+            last_offset = 0
+            assert len(mask_spans) <= len(self.extra_ids), f"mask_spans={len(mask_spans)} is over length of extra_ids"
+            for i, (begin, end) in enumerate(mask_spans):
+                new_words_ += words_[last_offset:begin]
+                new_words_.append(self.extra_ids[i])
+                last_offset = end
+            new_words_ += words_[last_offset:]
+
+            return new_words_
+
+        inputs = merge_mask(inputs)
+        targets = merge_mask(targets)
+
+        return {'inputs': inputs, 'targets': targets}
+
+
+class DataCollatorForSeq2Seq(object):
+    def __init__(self, tokenizer):
+        self.pad_token_id = tokenizer.pad_token_id
+        self.label_pad_token_id = -100
+
+    def __call__(self, features):
+        labels = [feature['labels'] for feature in features] if 'labels' in features[0] else None
+        input_ids = [feature['input_ids'] for feature in features] if 'input_ids' in features[0] else None
+        attention_mask = [feature['attention_mask'] for feature in features] if 'attention_mask' in features[0] else None
+
+        max_len_inputs = max(len(ids) for ids in input_ids)
+        max_len_labels = max(len(ids) for ids in labels)
+
+        for arr in input_ids:
+            arr.extend([self.pad_token_id] * (max_len_inputs - len(arr)))
+        for arr in attention_mask:
+            arr.extend([0] * (max_len_inputs - len(arr)))
+        for arr in labels:
+            arr.extend([self.label_pad_token_id] * (max_len_labels - len(arr)))
+
+        return BatchEncoding(data={'input_ids': input_ids, 'attention_mask': attention_mask, 'labels': labels})
+
