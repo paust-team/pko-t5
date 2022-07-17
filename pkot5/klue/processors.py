@@ -1,5 +1,4 @@
 import copy
-import math
 from abc import abstractmethod, ABCMeta
 from typing import Tuple, List, Dict
 
@@ -7,9 +6,6 @@ import torch
 from sklearn.metrics import f1_score, accuracy_score
 from scipy.stats import pearsonr
 import datasets
-from transformers import BatchEncoding, T5ForConditionalGeneration
-
-from .utils import contains_as_sublist
 
 
 class KlueProcessor(metaclass=ABCMeta):
