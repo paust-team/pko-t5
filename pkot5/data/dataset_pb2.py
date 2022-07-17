@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rdataset.proto\x12\x07\x64\x61taset\"\x1b\n\x0bReadRequest\x12\x0c\n\x04rank\x18\x01 \x01(\x03\"!\n\x0cReadResponse\x12\x11\n\tinput_ids\x18\x02 \x03(\x03\"/\n\x0bInitRequest\x12\x12\n\nworld_size\x18\x01 \x01(\x03\x12\x0c\n\x04seed\x18\x02 \x01(\x03\"\x0e\n\x0cInitResponse2\x80\x01\n\x12LargeCorpusDataset\x12\x33\n\x04Init\x12\x14.dataset.InitRequest\x1a\x15.dataset.InitResponse\x12\x35\n\x04Read\x12\x14.dataset.ReadRequest\x1a\x15.dataset.ReadResponse0\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rdataset.proto\x12\x07\x64\x61taset\"/\n\x0bReadRequest\x12\x0c\n\x04rank\x18\x01 \x01(\x03\x12\x12\n\nsession_id\x18\x02 \x01(\t\"!\n\x0cReadResponse\x12\x11\n\tinput_ids\x18\x02 \x03(\x03\"C\n\x0bInitRequest\x12\x12\n\nworld_size\x18\x01 \x01(\x03\x12\x0c\n\x04seed\x18\x02 \x01(\x03\x12\x12\n\nsession_id\x18\x03 \x01(\t\"\x0e\n\x0cInitResponse2\x80\x01\n\x12LargeCorpusDataset\x12\x33\n\x04Init\x12\x14.dataset.InitRequest\x1a\x15.dataset.InitResponse\x12\x35\n\x04Read\x12\x14.dataset.ReadRequest\x1a\x15.dataset.ReadResponse0\x01\x62\x06proto3')
 
 
 
@@ -55,13 +55,13 @@ if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
   _READREQUEST._serialized_start=26
-  _READREQUEST._serialized_end=53
-  _READRESPONSE._serialized_start=55
-  _READRESPONSE._serialized_end=88
-  _INITREQUEST._serialized_start=90
-  _INITREQUEST._serialized_end=137
-  _INITRESPONSE._serialized_start=139
-  _INITRESPONSE._serialized_end=153
-  _LARGECORPUSDATASET._serialized_start=156
-  _LARGECORPUSDATASET._serialized_end=284
+  _READREQUEST._serialized_end=73
+  _READRESPONSE._serialized_start=75
+  _READRESPONSE._serialized_end=108
+  _INITREQUEST._serialized_start=110
+  _INITREQUEST._serialized_end=177
+  _INITRESPONSE._serialized_start=179
+  _INITRESPONSE._serialized_end=193
+  _LARGECORPUSDATASET._serialized_start=196
+  _LARGECORPUSDATASET._serialized_end=324
 # @@protoc_insertion_point(module_scope)

@@ -2,7 +2,7 @@ import os
 import random
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import fire
 import numpy as np
@@ -10,21 +10,22 @@ import torch
 from torch.cuda import amp
 from torch.utils.data import DataLoader
 from transformers import T5TokenizerFast, T5ForConditionalGeneration, TrainingArguments, T5Config, Adafactor
+from transformers.utils.model_parallel_utils import get_device_map
 
 from .args import ARGS, CONFIGS
 from .data import LargeCorpusDatasetFromServerV2, DataCollatorForSeq2Seq, NUM_EXTRA_IDS, LargeCorpusDatasetFromServer, DataCollatorForT5MLM
 
 
-def train(model_size: str, tokenizer_path: str, grpc_endpoint: str, resume_checkpoint: Optional[int] = None, version: Optional[str] = None):
+def train(model_size: str, tokenizer_path: str, grpc_endpoint: str, job_name: str = "pkot5-pretraining", resume_checkpoint: Optional[int] = None, version: Optional[str] = None):
     local_rank = int(os.getenv("LOCAL_RANK", "-1"))
     model_size = model_size.lower()
+    default_args = ARGS[model_size]
+    n_pp = default_args.pop("pipeline_parallelism", 1)
     args = TrainingArguments(
         output_dir=f'./models/pko-t5/{model_size}',
         local_rank=local_rank,
-        **ARGS[model_size]
+        **default_args
     )
-
-    torch.cuda.set_device(local_rank)
 
     random.seed(args.seed)
     torch.random.manual_seed(args.seed)
@@ -33,7 +34,16 @@ def train(model_size: str, tokenizer_path: str, grpc_endpoint: str, resume_check
     tokenizer = T5TokenizerFast.from_pretrained(tokenizer_path, unk_token='<pad>', extra_ids=NUM_EXTRA_IDS)
     config = T5Config(**CONFIGS[model_size])
     config.dropout_rate = 0.0
-    model = T5ForConditionalGeneration(config).cuda()
+    if n_pp > 1:
+        torch.cuda.set_device(local_rank * n_pp)
+        model = T5ForConditionalGeneration(config)
+        devices = list(range(local_rank * n_pp, (local_rank + 1) * n_pp))
+        model.parallelize(get_device_map(len(model.encoder.block), devices))
+        ddp_model = torch.nn.parallel.DistributedDataParallel(model)
+    else:
+        torch.cuda.set_device(local_rank)
+        model = T5ForConditionalGeneration(config).cuda()
+        ddp_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
 
     optimizer = Adafactor(model.parameters(), scale_parameter=True, relative_step=True, warmup_init=True)
     scaler = amp.GradScaler()
@@ -45,12 +55,11 @@ def train(model_size: str, tokenizer_path: str, grpc_endpoint: str, resume_check
         model.load_state_dict(torch.load(ckpt_dir / "pytorch_model.bin", map_location='cpu'))
         optimizer.load_state_dict(torch.load(ckpt_dir / "optimizer.pt", map_location='cpu'))
 
-    ddp_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
     if version == "1":
-        train_data = LargeCorpusDatasetFromServer(grpc_endpoint, seed=args.data_seed)
+        train_data = LargeCorpusDatasetFromServer(job_name, grpc_endpoint, seed=args.data_seed)
         train_loader = DataLoader(train_data, batch_size=args.per_device_train_batch_size, collate_fn=DataCollatorForT5MLM(tokenizer, prefix="fill: "))
     else:
-        train_data = LargeCorpusDatasetFromServerV2(tokenizer, grpc_endpoint, seed=args.data_seed)
+        train_data = LargeCorpusDatasetFromServerV2(job_name, tokenizer, grpc_endpoint, seed=args.data_seed)
         train_loader = DataLoader(train_data, batch_size=args.per_device_train_batch_size, collate_fn=DataCollatorForSeq2Seq(tokenizer))
     print(f"Start pretraining of t5-{model_size}")
     while step < args.max_steps:

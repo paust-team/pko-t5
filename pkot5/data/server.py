@@ -2,6 +2,7 @@ import queue
 import random
 import threading
 import time
+import uuid
 from concurrent import futures
 from pathlib import Path
 
@@ -15,13 +16,15 @@ from . import dataset_pb2 as pb
 
 
 class LargeCorpusReader(object):
-    def __init__(self, tokenizer, corpus_dir):
+    def __init__(self, tokenizer, corpus_dir, seed, world_size):
         self.tokenizer = tokenizer
         self.corpus_dir = corpus_dir
 
         self.rng = None
         self.world_size = None
         self.corpus_files = None
+
+        self.reinit(seed, world_size)
 
     def reinit(self, seed, world_size):
         self.rng = random.Random(seed)
@@ -57,16 +60,17 @@ class LargeCorpusDatasetServicerImpl(LargeCorpusDatasetServicer):
         self.tokenizer = T5TokenizerFast.from_pretrained(model_path)
         self.corpus_dir = corpus_dir
 
-        self.reader = LargeCorpusReader(self.tokenizer, self.corpus_dir)
+        self.readers = {}
 
     def Init(self, request, context):
         print(f"Connected world_size={request.world_size}")
-        self.reader.reinit(request.seed, request.world_size)
+        reader = LargeCorpusReader(self.tokenizer, self.corpus_dir, request.seed, request.world_size)
+        self.readers[request.session_id] = reader
         return pb.InitResponse()
 
     def Read(self, request, context):
         print(f"Start reading rank={request.rank}")
-        for input_ids in self.reader.start(request.rank):
+        for input_ids in self.readers[request.session_id].start(request.rank):
             yield pb.ReadResponse(input_ids=input_ids)
 
 

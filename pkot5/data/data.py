@@ -190,19 +190,20 @@ class DataCollatorForT5MLM(object):
 
 
 class LargeCorpusDatasetFromServer(IterableDataset):
-    def __init__(self, grpc_endpoint, seed):
+    def __init__(self, jobname, grpc_endpoint, seed):
         channel = grpc.insecure_channel(grpc_endpoint)
         self.stub = LargeCorpusDatasetStub(channel)
 
         self.context = queue.Queue(maxsize=10)
         self.stop_worker = False
+        self.jobname = jobname
 
         if dist.get_rank() == 0:
-            self.stub.Init(pb.InitRequest(world_size=dist.get_world_size(), seed=seed))
+            self.stub.Init(pb.InitRequest(world_size=dist.get_world_size(), seed=seed, session_id=jobname))
         dist.barrier()
 
     def _get_from_server(self):
-        request = pb.ReadRequest(rank=dist.get_rank())
+        request = pb.ReadRequest(rank=dist.get_rank(), session_id=self.jobname)
         for response in self.stub.Read(request):
             if self.stop_worker:
                 break
@@ -245,23 +246,24 @@ class LargeCorpusDatasetFromServer(IterableDataset):
 
 
 class LargeCorpusDatasetFromServerV2(IterableDataset):
-    def __init__(self, tokenizer, grpc_endpoint, seed):
+    def __init__(self, jobname, tokenizer, grpc_endpoint, seed):
         channel = grpc.insecure_channel(grpc_endpoint)
         self.stub = LargeCorpusDatasetStub(channel)
 
-        self.context = queue.Queue(maxsize=10)
+        self.context = queue.Queue(maxsize=50)
         self.stop_worker = False
+        self.jobname = jobname
 
         self.prefix = tokenizer("fill: ", add_special_tokens=False).input_ids
         self.extra_ids = [tokenizer.convert_tokens_to_ids(f'<extra_id_{i}') for i in range(NUM_EXTRA_IDS)]
         self.eos_token_id = tokenizer.eos_token_id
 
         if dist.get_rank() == 0:
-            self.stub.Init(pb.InitRequest(world_size=dist.get_world_size(), seed=seed))
+            self.stub.Init(pb.InitRequest(world_size=dist.get_world_size(), seed=seed, session_id=jobname))
         dist.barrier()
 
     def _get_from_server(self):
-        request = pb.ReadRequest(rank=dist.get_rank())
+        request = pb.ReadRequest(rank=dist.get_rank(), session_id=self.jobname)
         for response in self.stub.Read(request):
             if self.stop_worker:
                 break
