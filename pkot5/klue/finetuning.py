@@ -6,7 +6,7 @@ import fire
 import redis
 import torch
 import torch.distributed as dist
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, SequentialSampler
 from tqdm.auto import tqdm
 from transformers import (
     Seq2SeqTrainer,
@@ -40,10 +40,10 @@ class Metrics(TrainerCallback):
         eval_dataloader = DataLoader(
             self.test_data,
             batch_size=args.per_device_eval_batch_size,
-            sampler=DistributedSamplerForEval(self.test_data),
+            sampler=DistributedSamplerForEval(self.test_data) if dist.is_initialized() else SequentialSampler(self.test_data),
             collate_fn=self.data_collator
         )
-        print("Start evaluation")
+        tqdm.write("Start evaluation")
         for data in tqdm(eval_dataloader, desc="Eval.."):
             output = model.generate(
                 input_ids=data['input_ids'].cuda(),
@@ -61,17 +61,17 @@ class Metrics(TrainerCallback):
             logits = logits.detach().cpu().tolist()
             all_logits += logits
 
-        self.r.set(f"{dist.get_rank()}", pickle.dumps([all_logits, all_scores]))
-        dist.barrier()
-        all_scores, all_logits = [], []
-        for i in range(dist.get_world_size()):
-            logits, scores = pickle.loads(self.r.get(f"{i}"))
-            all_logits += logits
-            all_scores += scores
-        if len(all_scores) == 0:
-            all_scores = None
-        self.metrics.append(self.processor.compute_metrics(all_logits, self.test_data.entries, output_scores=all_scores))
-        print(self.metrics[-1])
+        if dist.is_initialized():
+            self.r.set(f"{dist.get_rank()}", pickle.dumps([all_logits, all_scores]))
+            dist.barrier()
+            all_scores, all_logits = [], []
+            for i in range(dist.get_world_size()):
+                logits, scores = pickle.loads(self.r.get(f"{i}"))
+                all_logits += logits
+                all_scores += scores
+
+        self.metrics.append(self.processor.compute_metrics(all_logits, self.test_data.entries, output_scores=all_scores if len(all_scores) > 0 else None))
+        tqdm.write(self.metrics[-1])
         model.train()
 
 

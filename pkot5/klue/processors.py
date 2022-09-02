@@ -310,12 +310,11 @@ class KlueREProcessor(KlueProcessor):
         text2labels = {v: k for k, v in enumerate(self.labels)}
         pred_ids, target_ids = [], []
         for pred_text, row in zip(output_texts, entries):
-            if pred_text in text2labels:
-                pred_id = text2labels[pred_text]
-                target_id = row['label']
-                if target_id != 0:
-                    pred_ids.append(pred_id)
-                    target_ids.append(target_id)
+            pred_id = text2labels.get(pred_text.strip(), -1)
+            target_id = row['label']
+            if target_id != 0:
+                pred_ids.append(pred_id)
+                target_ids.append(target_id)
 
         micro_f1 = f1_score(target_ids, pred_ids, average='micro')
         return {"micro_f1": micro_f1}

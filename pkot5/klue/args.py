@@ -118,9 +118,9 @@ MULTITASK_CONFIG = dict(
     learning_rate=4e-5,
     optim="adafactor",
     num_train_epochs=5,
-    per_device_train_batch_size=4,
+    per_device_train_batch_size=2,
     per_device_eval_batch_size=8,
-    gradient_accumulation_steps=2,
+    gradient_accumulation_steps=4,
 
     generation_max_length=350,
     generation_num_beams=None,
@@ -134,12 +134,13 @@ MULTITASK_CONFIG = dict(
 
 MULTITASK_CONFIG_1 = dict(
     seed=42,
-    learning_rate=1e-3,
+    learning_rate=4e-3,
     optim="adafactor",
     num_train_epochs=3,
-    per_device_train_batch_size=4,
+    per_device_train_batch_size=2,
     per_device_eval_batch_size=8,
-    gradient_accumulation_steps=2,
+    gradient_accumulation_steps=4,
+    fp16=True,
 
     generation_max_length=350,
     generation_num_beams=None,
@@ -149,6 +150,23 @@ MULTITASK_CONFIG_1 = dict(
 )
 
 
+RE_CONFIG = dict(
+    seed=42,
+    learning_rate=7e-4,
+    warmup_ratio=0.06,
+    optim="adafactor",
+    num_train_epochs=10,
+    per_device_train_batch_size=2,
+    per_device_eval_batch_size=32,
+    gradient_accumulation_steps=4,
+
+    generation_max_length=64,
+    generation_num_beams=None,
+
+    evaluation_strategy=IntervalStrategy.EPOCH,
+    save_strategy=IntervalStrategy.NO,
+)
+
 
 CONFIGS = {
     'ynat': DEFAULT_ADAMW_CONFIG,
@@ -156,7 +174,8 @@ CONFIGS = {
     'nli': DEFAULT_CONFIG,
     'mrc': MRC_ALL_CONTEXT_CONFIG,
     'dp': DP_CONFIG,
-    'multitask': MULTITASK_CONFIG_1,
+    'multitask': MULTITASK_CONFIG,
+    're': RE_CONFIG,
 }
 
 
