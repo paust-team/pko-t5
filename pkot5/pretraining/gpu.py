@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader
 from transformers import T5TokenizerFast, T5ForConditionalGeneration, TrainingArguments, T5Config, Adafactor
 from transformers.utils.model_parallel_utils import get_device_map
 
-from .args import ARGS, CONFIGS
-from .data import LargeCorpusDatasetFromServerV2, DataCollatorForSeq2Seq, NUM_EXTRA_IDS, LargeCorpusDatasetFromServer, DataCollatorForT5MLM
+from pkot5.args import ARGS, CONFIGS
+from pkot5.data import LargeCorpusDatasetFromServerV2, DataCollatorForSeq2Seq, NUM_EXTRA_IDS, LargeCorpusDatasetFromServer, DataCollatorForT5MLM
 
 
 def train(model_size: str, tokenizer_path: str, grpc_endpoint: str, job_name: str = "pkot5-pretraining", resume_checkpoint: Optional[int] = None, version: Optional[str] = None):

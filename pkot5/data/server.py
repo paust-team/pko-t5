@@ -15,69 +15,38 @@ from .dataset_pb2_grpc import LargeCorpusDatasetServicer, add_LargeCorpusDataset
 from . import dataset_pb2 as pb
 
 
-class LargeCorpusReader(object):
-    def __init__(self, tokenizer, corpus_dir, seed, world_size):
-        self.tokenizer = tokenizer
-        self.corpus_dir = corpus_dir
+def read_large_corpus(corpus_dir, seed, rank, num_replicas):
+    rng = random.Random(seed)
+    corpus_dir = Path(corpus_dir)
+    corpus_files = list(corpus_dir.glob("part-*.json"))
+    rng.shuffle(corpus_files)
 
-        self.rng = None
-        self.world_size = None
-        self.corpus_files = None
+    corpus_files = corpus_files[rank::num_replicas]
 
-        self.reinit(seed, world_size)
-
-    def reinit(self, seed, world_size):
-        self.rng = random.Random(seed)
-        self.world_size = world_size
-
-        corpus_dir = Path(self.corpus_dir)
-        self.corpus_files = list(corpus_dir.glob("*.json"))
-        self.rng.shuffle(self.corpus_files)
-
-    def start(self, rank):
-        assert self.rng is not None
-        assert self.world_size is not None
-        assert self.corpus_files is not None
-
-        corpus_files = self.corpus_files[rank::self.world_size]
-        self.rng.shuffle(corpus_files)
-
-        for corpus_file in corpus_files:
-            texts = []
-            assert corpus_file.exists(), f"corpus_file={corpus_file}"
-            corpus_df = pd.read_json(corpus_file, orient='records', lines=True)
-            if 'text' not in corpus_df.keys():
-                continue
-            texts += list(corpus_df['text'])
-            self.rng.shuffle(texts)
-
-            all_ids = self.tokenizer(texts, add_special_tokens=False).input_ids
-            yield from all_ids
+    for corpus_file in corpus_files:
+        assert corpus_file.exists(), f"corpus_file={corpus_file}"
+        corpus_df = pd.read_json(corpus_file, orient='records', lines=True)
+        if 'text' not in corpus_df.keys():
+            continue
+        documents = corpus_df['text'].tolist()
+        rng.shuffle(documents)
+        yield documents
 
 
 class LargeCorpusDatasetServicerImpl(LargeCorpusDatasetServicer):
-    def __init__(self, model_path, corpus_dir):
-        self.tokenizer = T5TokenizerFast.from_pretrained(model_path)
+    def __init__(self, corpus_dir):
         self.corpus_dir = corpus_dir
 
-        self.readers = {}
-
-    def Init(self, request, context):
-        print(f"Connected world_size={request.world_size}")
-        reader = LargeCorpusReader(self.tokenizer, self.corpus_dir, request.seed, request.world_size)
-        self.readers[request.session_id] = reader
-        return pb.InitResponse()
-
-    def Read(self, request, context):
-        print(f"Start reading rank={request.rank}")
-        for input_ids in self.readers[request.session_id].start(request.rank):
-            yield pb.ReadResponse(input_ids=input_ids)
+    def Read(self, req, context):
+        print(f"Start reading rank={req.rank}")
+        for documents in read_large_corpus(self.corpus_dir, req.seed, req.rank, req.num_replicas):
+            yield pb.ReadResponse(texts=documents)
 
 
-def serve(model_path, corpus_dir, port=50051):
+def serve(corpus_dir, port=50051):
     server = grpc.server(futures.ThreadPoolExecutor(10))
-    add_LargeCorpusDatasetServicer_to_server(LargeCorpusDatasetServicerImpl(model_path, corpus_dir), server)
-    server.add_insecure_port(f"[::]:{port}")
+    add_LargeCorpusDatasetServicer_to_server(LargeCorpusDatasetServicerImpl(corpus_dir), server)
+    server.add_insecure_port(f"0.0.0.0:{port}")
     print(f"Start corpus dataset serving on {port}")
     server.start()
     server.wait_for_termination()

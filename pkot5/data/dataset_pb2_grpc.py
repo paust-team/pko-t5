@@ -14,11 +14,6 @@ class LargeCorpusDatasetStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.Init = channel.unary_unary(
-                '/dataset.LargeCorpusDataset/Init',
-                request_serializer=dataset__pb2.InitRequest.SerializeToString,
-                response_deserializer=dataset__pb2.InitResponse.FromString,
-                )
         self.Read = channel.unary_stream(
                 '/dataset.LargeCorpusDataset/Read',
                 request_serializer=dataset__pb2.ReadRequest.SerializeToString,
@@ -29,12 +24,6 @@ class LargeCorpusDatasetStub(object):
 class LargeCorpusDatasetServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def Init(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
     def Read(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -44,11 +33,6 @@ class LargeCorpusDatasetServicer(object):
 
 def add_LargeCorpusDatasetServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'Init': grpc.unary_unary_rpc_method_handler(
-                    servicer.Init,
-                    request_deserializer=dataset__pb2.InitRequest.FromString,
-                    response_serializer=dataset__pb2.InitResponse.SerializeToString,
-            ),
             'Read': grpc.unary_stream_rpc_method_handler(
                     servicer.Read,
                     request_deserializer=dataset__pb2.ReadRequest.FromString,
@@ -63,23 +47,6 @@ def add_LargeCorpusDatasetServicer_to_server(servicer, server):
  # This class is part of an EXPERIMENTAL API.
 class LargeCorpusDataset(object):
     """Missing associated documentation comment in .proto file."""
-
-    @staticmethod
-    def Init(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/dataset.LargeCorpusDataset/Init',
-            dataset__pb2.InitRequest.SerializeToString,
-            dataset__pb2.InitResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
     def Read(request,

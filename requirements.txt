@@ -1,5 +1,5 @@
 pandas
-transformers==4.18.0
+transformers==4.20.0
 datasets==2.1.0
 tokenizers==0.12.1
 redis
@@ -8,6 +8,6 @@ fire
 scikit-learn
 scipy
 # torch==1.12.0
-grpcio
-grpcio-tools
+grpcio==1.46.1
+grpcio-tools==1.46.1
 pytest
