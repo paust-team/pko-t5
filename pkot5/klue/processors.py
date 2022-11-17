@@ -4,6 +4,7 @@ from typing import Tuple, List, Dict
 
 import torch
 from sklearn.metrics import f1_score, accuracy_score
+from transformers.data.metrics.squad_metrics import compute_exact, compute_f1
 from scipy.stats import pearsonr
 import datasets
 

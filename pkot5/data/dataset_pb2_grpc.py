@@ -14,17 +14,39 @@ class LargeCorpusDatasetStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.Read = channel.unary_stream(
-                '/dataset.LargeCorpusDataset/Read',
-                request_serializer=dataset__pb2.ReadRequest.SerializeToString,
-                response_deserializer=dataset__pb2.ReadResponse.FromString,
+        self.Open = channel.unary_unary(
+                '/dataset.LargeCorpusDataset/Open',
+                request_serializer=dataset__pb2.OpenRequest.SerializeToString,
+                response_deserializer=dataset__pb2.OpenResponse.FromString,
+                )
+        self.ReadNext = channel.unary_unary(
+                '/dataset.LargeCorpusDataset/ReadNext',
+                request_serializer=dataset__pb2.ReadNextRequest.SerializeToString,
+                response_deserializer=dataset__pb2.ReadNextResponse.FromString,
+                )
+        self.Close = channel.unary_unary(
+                '/dataset.LargeCorpusDataset/Close',
+                request_serializer=dataset__pb2.CloseRequest.SerializeToString,
+                response_deserializer=dataset__pb2.CloseResponse.FromString,
                 )
 
 
 class LargeCorpusDatasetServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def Read(self, request, context):
+    def Open(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ReadNext(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Close(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -33,10 +55,20 @@ class LargeCorpusDatasetServicer(object):
 
 def add_LargeCorpusDatasetServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'Read': grpc.unary_stream_rpc_method_handler(
-                    servicer.Read,
-                    request_deserializer=dataset__pb2.ReadRequest.FromString,
-                    response_serializer=dataset__pb2.ReadResponse.SerializeToString,
+            'Open': grpc.unary_unary_rpc_method_handler(
+                    servicer.Open,
+                    request_deserializer=dataset__pb2.OpenRequest.FromString,
+                    response_serializer=dataset__pb2.OpenResponse.SerializeToString,
+            ),
+            'ReadNext': grpc.unary_unary_rpc_method_handler(
+                    servicer.ReadNext,
+                    request_deserializer=dataset__pb2.ReadNextRequest.FromString,
+                    response_serializer=dataset__pb2.ReadNextResponse.SerializeToString,
+            ),
+            'Close': grpc.unary_unary_rpc_method_handler(
+                    servicer.Close,
+                    request_deserializer=dataset__pb2.CloseRequest.FromString,
+                    response_serializer=dataset__pb2.CloseResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -49,7 +81,7 @@ class LargeCorpusDataset(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def Read(request,
+    def Open(request,
             target,
             options=(),
             channel_credentials=None,
@@ -59,8 +91,42 @@ class LargeCorpusDataset(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/dataset.LargeCorpusDataset/Read',
-            dataset__pb2.ReadRequest.SerializeToString,
-            dataset__pb2.ReadResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/dataset.LargeCorpusDataset/Open',
+            dataset__pb2.OpenRequest.SerializeToString,
+            dataset__pb2.OpenResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ReadNext(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/dataset.LargeCorpusDataset/ReadNext',
+            dataset__pb2.ReadNextRequest.SerializeToString,
+            dataset__pb2.ReadNextResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def Close(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/dataset.LargeCorpusDataset/Close',
+            dataset__pb2.CloseRequest.SerializeToString,
+            dataset__pb2.CloseResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

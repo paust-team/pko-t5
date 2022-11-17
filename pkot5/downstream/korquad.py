@@ -16,12 +16,12 @@ from transformers.data.metrics import squad_metrics
 import torch_xla.distributed.xla_multiprocessing as xmp
 import torch_xla.core.xla_model as xm
 import torch_xla.distributed.parallel_loader as pl
+from torch_xla.utils import gcsfs
 
 from ..generation_utils import beam_search
 
-INPUT_MAX_LENGTH = 1500
+INPUT_MAX_LENGTH = 1024
 OUTPUT_MAX_LENGTH = 32
-DATASET_DB_FILENAME = "__korquad_data.db"
 
 
 def get_squad_metrics(tokenizer, predictions, labels):
@@ -39,46 +39,26 @@ def get_squad_metrics(tokenizer, predictions, labels):
     return em, f1
 
 
-def prepare_data(model_name="paust/pko-t5-base"):
+def prepare_data(tokenizer, target='train'):
     ds = load_dataset("squad_kor_v1")
-    tokenizer: T5TokenizerFast = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+    dataset = ds[target]
 
-    datasets = {}
-    for split in ['train', 'validation']:
-        all_labels = [row['answers']['text'][0] for row in ds[split]]
-        all_inputs = [f"question: {row['question']} title: {row['title']} context: {row['context']}" for row in ds[split]]
-        batch = tokenizer(all_inputs, add_special_tokens=True, max_length=INPUT_MAX_LENGTH, truncation=True)
-        input_ids = batch['input_ids']
-        attention_mask = batch['attention_mask']
-        batch = tokenizer(all_labels, add_special_tokens=True, max_length=OUTPUT_MAX_LENGTH, truncation=True, padding='max_length', return_tensors='np')
-        labels = batch['input_ids']
-        labels[~batch['attention_mask']] = -100
-        labels = labels.tolist()
-        dataset = [{'input_ids': row[0], 'attention_mask': row[1], 'labels': row[2]} for row in zip(input_ids, attention_mask, labels)]
+    all_inputs = [f"question: {row['question']} title: {row['title']} context: {row['context']}" for row in dataset]
+    inputs = tokenizer(all_inputs, add_special_tokens=True, max_length=INPUT_MAX_LENGTH, truncation=True, padding=True, return_tensors='np')
+    input_ids = inputs.input_ids.tolist()
+    attention_mask = inputs.attention_mask.tolist()
 
-        datasets[split] = dataset
+    all_labels = [row['answers']['text'][0] for row in dataset]
+    targets = tokenizer(all_labels, add_special_tokens=True, max_length=OUTPUT_MAX_LENGTH, truncation=True, padding=True, return_tensors='np')
+    labels = targets.input_ids
+    labels[~targets.attention_mask] = -100
+    labels = labels.tolist()
+    dataset = [{'input_ids': row[0], 'attention_mask': row[1], 'labels': row[2]} for row in zip(input_ids, attention_mask, labels)]
 
-    with shelve.open(DATASET_DB_FILENAME, flag='c', writeback=True) as db:
-        for split in ['train', 'validation']:
-            for i, row in enumerate(datasets[split]):
-                db[f"{split}_{i}"] = row
-            db[f"{split}_size"] = len(datasets[split])
+    return dataset
 
 
-class DatasetFromDB(torch.utils.data.Dataset):
-    def __init__(self, split_name):
-        self.db = shelve.open(DATASET_DB_FILENAME, flag='r')
-        self.split_name = split_name
-
-    def __len__(self):
-        return self.db[f"{self.split_name}_size"]
-
-    def __getitem__(self, idx):
-        row = self.db[f"{self.split_name}_{idx}"]
-        return row
-
-
-def train_per_device(proc_id, log_dir, model_name):
+def train_per_device(proc_id, log_dir, model_name, output_path):
     input_max_length = INPUT_MAX_LENGTH
     output_max_length = OUTPUT_MAX_LENGTH
 
@@ -88,11 +68,8 @@ def train_per_device(proc_id, log_dir, model_name):
 
     tokenizer: T5TokenizerFast = AutoTokenizer.from_pretrained(model_name, use_fast=True)
 
-    datasets = {}
-    for split in ['train', 'validation']:
-        datasets[split] = DatasetFromDB(split)
-
-    print(f"train data size: {len(datasets['train'])}")
+    train_data = prepare_data(tokenizer, target='train')
+    valid_data = prepare_data(tokenizer, target='validation')
 
     args = Seq2SeqTrainingArguments(
         "pko-t5-korquad",
@@ -117,12 +94,10 @@ def train_per_device(proc_id, log_dir, model_name):
     device = xm.xla_device()
 
     data_collator = DataCollatorForSeq2Seq(tokenizer, model, padding='max_length', max_length=input_max_length)
-    train_data = datasets['train']
     train_dataloader = DataLoader(train_data,
                                   batch_size=args.per_device_train_batch_size,
                                   sampler=DistributedSampler(train_data, num_replicas=xm.xrt_world_size(), rank=xm.get_ordinal(), shuffle=True, seed=args.seed),
                                   collate_fn=data_collator)
-    valid_data = datasets['validation']
     valid_dataloader = DataLoader(valid_data,
                                   batch_size=args.per_device_train_batch_size,
                                   sampler=DistributedSampler(valid_data, num_replicas=xm.xrt_world_size(), rank=xm.get_ordinal(), shuffle=False, seed=args.seed),
@@ -179,16 +154,15 @@ def train_per_device(proc_id, log_dir, model_name):
 
                 xm.add_step_closure(_eval_update, args=(loss, logits, labels))
 
-            eval_loss = mean(losses)
             labels = all_labels
             predictions = all_logits
 
-        torch.save([eval_loss, labels, predictions], f"cached_{proc_id}.ptc")
+        torch.save([losses, labels, predictions], f"cached_{proc_id}.ptc")
         xm.rendezvous("reduce-eval_metrics")
         losses, labels, predictions = [], [], []
         for i in range(xm.xrt_world_size()):
             record = torch.load(f"cached_{i}.ptc")
-            losses.append(record[0])
+            losses.extend(record[0])
             labels.extend(record[1])
             predictions.extend(record[2])
 
@@ -196,9 +170,12 @@ def train_per_device(proc_id, log_dir, model_name):
         eval_em, eval_f1 = get_squad_metrics(tokenizer, predictions, labels)
         print(f"[{epoch+1}/{num_train_epochs}] eval_loss={eval_loss:.4f} eval_em={eval_em:.4f} eval_f1={eval_f1:.4f}")
 
+        with gcsfs.open(f"{output_path}/pytorch_model.bin", mode="wb") as f:
+            xm.save(model.state_dict(), f)
 
-def train(log_dir="./logs", model_name="paust/pko-t5-base", nprocs=8):
-    xmp.spawn(train_per_device, args=(log_dir, model_name), nprocs=nprocs)
+
+def train(output_path="gs://pko_t5/base_finetuned_korquad", log_dir="./logs", model_name="paust/pko-t5-base", nprocs=8):
+    xmp.spawn(train_per_device, args=(log_dir, model_name, output_path), nprocs=nprocs)
 
 
 def test(model_name='paust/pko-t5-base'):
@@ -212,7 +189,7 @@ def test(model_name='paust/pko-t5-base'):
     for i, data in enumerate([train_data, test_data]):
         all_inputs = [f"question: {row['question']} title: {row['title']} context: {row['context']}" for row in data]
         all_input_ids = tokenizer(all_inputs,
-                                  add_special_tokens=True, max_length=1500, truncation=True).input_ids
+                                  add_special_tokens=True, max_length=INPUT_MAX_LENGTH, truncation=True).input_ids
         all_labels = [row['answers']['text'][0] for row in data]
         all_label_ids = tokenizer(all_labels, add_special_tokens=True).input_ids
         for input_ids, label_ids in zip(all_input_ids, all_label_ids):
@@ -236,5 +213,4 @@ if __name__ == '__main__':
     fire.Fire({
         'train': train,
         'test': test,
-        'prepare_data': prepare_data,
     })

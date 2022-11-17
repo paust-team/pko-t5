@@ -3,15 +3,32 @@ syntax = "proto3";
 package dataset;
 
 service LargeCorpusDataset {
-  rpc Read(ReadRequest) returns (stream ReadResponse);
+  rpc Open(OpenRequest) returns (OpenResponse);
+  rpc ReadNext(ReadNextRequest) returns (ReadNextResponse);
+  rpc Close(CloseRequest) returns (CloseResponse);
 }
 
-message ReadRequest {
+message OpenRequest {
   int64 rank = 1;
   int64 num_replicas = 2;
   int64 seed = 3;
 }
 
-message ReadResponse {
+message OpenResponse {
+  string session_id = 1;
+}
+
+message ReadNextRequest {
+  string session_id = 1;
+}
+
+message ReadNextResponse {
   repeated string texts = 1;
+}
+
+message CloseRequest {
+  string session_id = 1;
+}
+
+message CloseResponse {
 }
