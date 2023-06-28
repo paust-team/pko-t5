@@ -1,13 +1,21 @@
 pandas
-transformers==4.20.0
-datasets==2.1.0
-tokenizers==0.12.1
+transformers
+datasets
+tokenizers
 redis
 tqdm
 fire
 scikit-learn
 scipy
 # torch==1.12.0
-grpcio==1.46.1
-grpcio-tools==1.46.1
+grpcio==1.51.3
+grpcio-tools==1.51.3
 pytest
+pydantic-argparse
+pydantic
+wandb
+safetensors
+rouge-score
+openpyxl
+aimrocks
+accelerate

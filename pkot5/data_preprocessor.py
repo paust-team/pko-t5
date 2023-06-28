@@ -34,37 +34,33 @@ def preprocess_dataset(data_name, task_family=None):
         file_path = f"{DATA_PATH}/{data_name}/"
         files = [ os.path.join(path, name) for path, subdirs, files in os.walk(file_path) for name in files ]
         label_to_text = {
-            '0': 'fragment',
-            '1': 'statement',
-            '2': 'question',
-            '3': 'command',
-            '4': 'rhetorical question',
-            '5': 'rhetorical command',
-            '6': 'intonation-depedent utterance',
+            '0': '조각',
+            '1': '설명문',
+            '2': '질문',
+            '3': '명령',
+            '4': '수사적 질문',
+            '5': '수사적 명령',
+            '6': '억양이 있는 발화',
         }
         
         pbar = tqdm(total = len(files))
         for file_name in files:
             file_object = open(f"{file_name}", "r")
-            input_text = []
-            label = []
+            input_texts = []
+            label_texts = []
         
             for line in file_object:
                 line = line.split('\t')
-                input_text.append(line[1].strip())
-                label.append(label_to_text[line[0].strip()])
-            
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-            label_ids = tokenizer(label, add_special_tokens=False).input_ids
-        
-            for i in range(len(input_text_ids)):
+                input_texts.append(line[1].strip())
+                label_texts.append(label_to_text[line[0].strip()])
+
+            for input_text, label_text in zip(input_texts, label_texts):
                 all_data.append({
                     "data_name": data_name,
                     "task_family": "classification",
-                    'input_ids': input_text_ids[i],
-                    'output_ids': label_ids[i],
-                    'input_text': input_text[i],
-                    'output_text': label[i],
+                    'input_text': input_text,
+                    'output_text': label_text,
+                    'instruction': "다음의 질문을 보고 한국어의 억양 보조 의도를 식별하는 적절한 응답을 작성하세요.",
                 })
             file_object.close()
             pbar.update(1)
@@ -73,19 +69,19 @@ def preprocess_dataset(data_name, task_family=None):
     elif data_name == 'nsmc':
         datasets = load_dataset("nsmc")
         label_to_text = {
-            0: 'negative',
-            1: 'positive',
+            0: '부정',
+            1: '긍정',
         }
 
         for data_split in ['train', 'test']:    
-            input_text = []
-            label = []
+            input_texts = []
+            label_texts = []
             for data in datasets[data_split]:
-                input_text.append(data['document'].strip())
-                label.append(label_to_text[data['label']])
+                input_texts.append(data['document'].strip())
+                label_texts.append(label_to_text[data['label']])
             
-        input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-        label_ids = tokenizer(label, add_special_tokens=False).input_ids
+        input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+        label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
             
         for i in range(len(input_text_ids)):
             all_data.append({
@@ -93,23 +89,23 @@ def preprocess_dataset(data_name, task_family=None):
                 "task_family": "classification",
                 'input_ids': input_text_ids[i],
                 'output_ids': label_ids[i],
-                'input_text': input_text[i],
-                'output_text': label[i],
+                'input_text': input_texts[i],
+                'output_text': label_texts[i],
             })
                 
     elif data_name == 'toxic_comment':
         df = pd.read_csv(f"{DATA_PATH}/Toxic_comment_data/ko_train_label.csv", header=0)
-        input_text = []
-        label = []
+        input_texts = []
+        label_texts = []
         for i in range(len(df)):
             row = df.iloc[i].to_dict()
             for k, v in row.items():
                 if v == 1:
-                    label.append(k)
-            input_text.append(row['document'].strip())
+                    label_texts.append(k)
+            input_texts.append(row['document'].strip())
             
-        input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-        label_ids = tokenizer(label, add_special_tokens=False).input_ids
+        input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+        label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
         for i in range(len(input_text_ids)):
             all_data.append({
@@ -117,35 +113,35 @@ def preprocess_dataset(data_name, task_family=None):
                 "task_family": "classification",
                 'input_ids': input_text_ids[i],
                 'output_ids': label_ids[i],
-                'input_text': input_text[i],
-                'output_text': label[i],
+                'input_text': input_texts[i],
+                'output_text': label_texts[i],
             })
             
     elif data_name == 'korean_hate_speech':
         df = pd.read_csv(f"{DATA_PATH}/korean_hate_speech/labeled/train.tsv", sep='\t', header=0)
-        input_text, label = [], []
+        input_texts, label_texts = [], []
         for i in range(len(df)):
             row = df.iloc[i].to_dict()
-            input_text.append(row['comments'].strip())
+            input_texts.append(row['comments'].strip())
             for label_type in ['contain_gender_bias', 'bias', 'hate']:
                 if label_type == 'contain_gender_bias':
                     if row[label_type]:
-                        label.append('biased')
+                        label_texts.append('biased')
                     else:
-                        label.append('unbiased')
+                        label_texts.append('unbiased')
                 elif label_type == 'bias':
                     if row[label_type] == 'none':
-                        label.append('no bias')
+                        label_texts.append('no bias')
                     else:
-                        label.append(row[label_type])
+                        label_texts.append(row[label_type])
                 elif label_type == 'hate':
                     if row[label_type] == 'none':
-                        label.append('no hate')
+                        label_texts.append('no hate')
                     else:
-                        label.append(row[label_type])
+                        label_texts.append(row[label_type])
                 
-        input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-        label_ids = tokenizer(label, add_special_tokens=False).input_ids
+        input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+        label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
         for i in range(len(input_text_ids)):
             all_data.append({
@@ -153,8 +149,8 @@ def preprocess_dataset(data_name, task_family=None):
                 "task_family": "classification",
                 'input_ids': input_text_ids[i],
                 'output_ids': label_ids[i],
-                'input_text': input_text[i],
-                'output_text': label[i],
+                'input_text': input_texts[i],
+                'output_text': label_texts[i],
             })
                 
     elif data_name == 'kornli':
@@ -165,16 +161,16 @@ def preprocess_dataset(data_name, task_family=None):
         for file_name in files:
             file_object = open(file_name, 'r')
             file_object.readline()
-            input_text = []
-            label = []
+            input_texts = []
+            label_texts = []
             for line in file_object:
                 line = line.strip()
                 line = line.split('\t')
-                input_text.append(line[0].strip() + ' ' + line[1].strip())
-                label.append(line[2].strip())
+                input_texts.append(line[0].strip() + ' ' + line[1].strip())
+                label_texts.append(line[2].strip())
             
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-            label_ids = tokenizer(label, add_special_tokens=False).input_ids
+            input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+            label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
             for i in range(len(input_text_ids)):
                 all_data.append({
@@ -182,8 +178,8 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": "natural language inference",
                     'input_ids': input_text_ids[i],
                     'output_ids': label_ids[i],
-                    'input_text': input_text[i],
-                    'output_text': label[i],
+                    'input_text': input_texts[i],
+                    'output_text': label_texts[i],
                 })                
             file_object.close()
             
@@ -197,16 +193,16 @@ def preprocess_dataset(data_name, task_family=None):
         pbar = tqdm(total = len(files))
         for file_name in files:
             file_object = open(file_name, 'r')
-            input_text = []
-            label = []
+            input_texts = []
+            label_texts = []
             for line in file_object:
                 line = line.strip()
                 line = line.split('\t')
-                input_text.append(line[5].strip() + ' ' + line[6].strip())
-                label.append(line[4].strip())
+                input_texts.append(line[5].strip() + ' ' + line[6].strip())
+                label_texts.append(line[4].strip())
             
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-            label_ids = tokenizer(label, add_special_tokens=False).input_ids
+            input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+            label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
             for i in range(len(input_text_ids)):
                 all_data.append({
@@ -214,8 +210,8 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": "semantic textual similarity",
                     'input_ids': input_text_ids[i],
                     'output_ids': label_ids[i],
-                    'input_text': input_text[i],
-                    'output_text': label[i],
+                    'input_text': input_texts[i],
+                    'output_text': label_texts[i],
                 })                
             file_object.close()
             
@@ -224,17 +220,17 @@ def preprocess_dataset(data_name, task_family=None):
      
     elif data_name == 'question_pair':
         df = pd.read_csv(f"{DATA_PATH}/question_pair/kor_pair_train.csv", header=0)
-        input_text, label = [], []
+        input_texts, label_texts = [], []
         for i in range(len(df)):
             row = df.iloc[i].to_dict()
-            input_text.append(row['question1'].strip() + ' ' + row['question2'].strip())
+            input_texts.append(row['question1'].strip() + ' ' + row['question2'].strip())
             if row['is_duplicate'] == 1:
-                label.append("duplicate")
+                label_texts.append("duplicate")
             else:
-                label.append("not duplicate")
+                label_texts.append("not duplicate")
             
-        input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-        label_ids = tokenizer(label, add_special_tokens=False).input_ids
+        input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+        label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
         for i in range(len(input_text_ids)):
             all_data.append({
@@ -242,20 +238,20 @@ def preprocess_dataset(data_name, task_family=None):
                 "task_family": "semantic textual similarity",
                 'input_ids': input_text_ids[i],
                 'output_ids': label_ids[i],
-                'input_text': input_text[i],
-                'output_text': label[i],
+                'input_text': input_texts[i],
+                'output_text': label_texts[i],
             })                
 
     elif data_name == 'paraKQC':
         df = pd.read_csv(f"{DATA_PATH}/paraKQC/data/paraKQC_v1_generated.tsv", sep='\t')
-        input_text, label = [], []
+        input_texts, label_texts = [], []
         for i in range(len(df)):
             row = df.iloc[i].to_list()
-            input_text.append(row[0].strip() + ' ' + row[1].strip())
-            label.append(row[2].strip())
+            input_texts.append(row[0].strip() + ' ' + row[1].strip())
+            label_texts.append(row[2].strip())
         
-        input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-        label_ids = tokenizer(label, add_special_tokens=False).input_ids
+        input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+        label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
         for i in range(len(input_text_ids)):
             all_data.append({
@@ -263,20 +259,20 @@ def preprocess_dataset(data_name, task_family=None):
                 "task_family": "semantic textual similarity",
                 'input_ids': input_text_ids[i],
                 'output_ids': label_ids[i],
-                'input_text': input_text[i],
-                'output_text': label[i],
+                'input_text': input_texts[i],
+                'output_text': label_texts[i],
             })    
     
     elif data_name == "korquad_v1":
         datasets = load_dataset('squad_kor_v1')
         for data_split in ['train', 'validation']:
-            input_text, label = [], []
+            input_texts, label_texts = [], []
             for data in datasets[data_split]:
-                input_text.append(f"질의: {data['question']} 제목: {data['title']} 본문: {data['context']}".strip())
-                label.append(data['answers']['text'][0].strip())
+                input_texts.append(f"질의: {data['question']} 제목: {data['title']} 본문: {data['context']}".strip())
+                label_texts.append(data['answers']['text'][0].strip())
                 
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-            label_ids = tokenizer(label, add_special_tokens=False).input_ids
+            input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+            label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
             for i in range(len(input_text_ids)):
                 all_data.append({
@@ -284,20 +280,20 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": "question answering",
                     'input_ids': input_text_ids[i],
                     'output_ids': label_ids[i],
-                    'input_text': input_text[i],
-                    'output_text': label[i],
+                    'input_text': input_texts[i],
+                    'output_text': label_texts[i],
                 })
                 
     elif data_name == "korquad_v2": # Not use
         datasets = load_dataset('squad_kor_v2')
         for data_split in ['train', 'validation']:
-            input_text, label = [], []
+            input_texts, label_texts = [], []
             for data in datasets[data_split]:
-                input_text.append(f"질의: {data['question']} 제목: {data['title']} 본문: {data['context']}".strip())
-                label.append(data['answers']['text'][0].strip())
+                input_texts.append(f"질의: {data['question']} 제목: {data['title']} 본문: {data['context']}".strip())
+                label_texts.append(data['answers']['text'][0].strip())
                 
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-            label_ids = tokenizer(label, add_special_tokens=False).input_ids
+            input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+            label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
             for i in range(len(input_text_ids)):
                 all_data.append({
@@ -305,23 +301,23 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": "question answering",
                     'input_ids': input_text_ids[i],
                     'output_ids': label_ids[i],
-                    'input_text': input_text[i],
-                    'output_text': label[i],
+                    'input_text': input_texts[i],
+                    'output_text': label_texts[i],
                 })
                 
     elif data_name == "sci-news-sum-kr-50":
         file_path = f"{DATA_PATH}/{data_name}/"
         files = [ os.path.join(path, name) for path, subdirs, files in os.walk(file_path) for name in files ]
-        input_text, label = [], []
+        input_texts, label_texts = [], []
         for file in files:
             file_object = open(file, "rb")
             data = json.loads(file_object.read().decode('utf-8'))
-            input_text.append(f"제목: {data['title']} 본문: {'. '.join(data['sentences']).strip()}")
-            label.append('. '.join([ data['sentences'][s] for s in data['summaries'] ]).strip())
+            input_texts.append(f"제목: {data['title']} 본문: {'. '.join(data['sentences']).strip()}")
+            label_texts.append('. '.join([ data['sentences'][s] for s in data['summaries'] ]).strip())
             file_object.close()
             
-        input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-        label_ids = tokenizer(label, add_special_tokens=False).input_ids
+        input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+        label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
         for i in range(len(input_text_ids)):
             all_data.append({
@@ -329,8 +325,8 @@ def preprocess_dataset(data_name, task_family=None):
                 "task_family": "extractive summarization",
                 'input_ids': input_text_ids[i],
                 'output_ids': label_ids[i],
-                'input_text': input_text[i],
-                'output_text': label[i],
+                'input_text': input_texts[i],
+                'output_text': label_texts[i],
             })
     
     elif data_name == "sae4k":
@@ -339,20 +335,20 @@ def preprocess_dataset(data_name, task_family=None):
         for file_name in files:
             file_object = open(file_name, 'r')
             file_object.readline()
-            input_text, label = [], []
+            input_texts, label_texts = [], []
             for line in file_object:
                 line = line.strip()
                 line = line.split('\t')
                 if file_name[-6:] == "v1.txt":
-                    input_text.append(line[0].strip())
-                    label.append(line[1].strip())
+                    input_texts.append(line[0].strip())
+                    label_texts.append(line[1].strip())
                 elif file_name[-6:] == "v2.txt":
-                    input_text.append(line[1].strip())
-                    label.append(line[2].strip())
+                    input_texts.append(line[1].strip())
+                    label_texts.append(line[2].strip())
             file_object.close()
             
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-            label_ids = tokenizer(label, add_special_tokens=False).input_ids
+            input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+            label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
             for i in range(len(input_text_ids)):
                 all_data.append({
@@ -360,25 +356,25 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": "abstractive summarization", # short -> very short
                     'input_ids': input_text_ids[i],
                     'output_ids': label_ids[i],
-                    'input_text': input_text[i],
-                    'output_text': label[i],
+                    'input_text': input_texts[i],
+                    'output_text': label_texts[i],
                 })
             
     elif data_name == "korean_parallel":
         data_object_ko = open(f"{DATA_PATH}/korean_parallel/korean-english-park.train.ko", 'r')
         data_object_en = open(f"{DATA_PATH}/korean_parallel/korean-english-park.train.en", 'r')
         
-        input_text, label = [], []
+        input_texts, label_texts = [], []
         for line_ko, line_en in zip(data_object_ko, data_object_en):
             line_ko, line_en = line_ko.strip(), line_en.strip()
-            input_text.append(line_ko)
-            label.append(line_en)
+            input_texts.append(line_ko)
+            label_texts.append(line_en)
             
         data_object_ko.close()
         data_object_en.close()
 
-        input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-        label_ids = tokenizer(label, add_special_tokens=False).input_ids
+        input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+        label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
         for i in range(len(input_text_ids)):
             all_data.append({
@@ -386,8 +382,8 @@ def preprocess_dataset(data_name, task_family=None):
                 "task_family": "translation (ko->en)",
                 'input_ids': input_text_ids[i],
                 'output_ids': label_ids[i],
-                'input_text': input_text[i],
-                'output_text': label[i],
+                'input_text': input_texts[i],
+                'output_text': label_texts[i],
             })
             
             all_data.append({
@@ -395,14 +391,14 @@ def preprocess_dataset(data_name, task_family=None):
                 "task_family": "translation (en->ko)",
                 'input_ids': label_ids[i],
                 'output_ids': input_text_ids[i],
-                'input_text': label[i],
-                'output_text': input_text[i],
+                'input_text': label_texts[i],
+                'output_text': input_texts[i],
             })
         
     elif data_name == "transliteration":
         file_path = f"{DATA_PATH}/transliteration/data/source/"
         files = [ file_path + f for f in os.listdir(file_path) if os.path.isfile(file_path + f) ]
-        input_text, label = [], []
+        input_texts, label_texts = [], []
         for file_name in files:
             file_object = open(file_name, "r")
             for line in file_object:
@@ -410,11 +406,11 @@ def preprocess_dataset(data_name, task_family=None):
                     continue
                 else:
                     line = line.split('\t')
-                    input_text.append(line[1].strip())
-                    label.append(line[0].strip())
+                    input_texts.append(line[1].strip())
+                    label_texts.append(line[0].strip())
                     
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-            label_ids = tokenizer(label, add_special_tokens=False).input_ids
+            input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+            label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
         
             for i in range(len(input_text_ids)):
                 all_data.append({
@@ -422,8 +418,8 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": "transliteration (ko->en)",
                     'input_ids': input_text_ids[i],
                     'output_ids': label_ids[i],
-                    'input_text': input_text[i],
-                    'output_text': label[i],
+                    'input_text': input_texts[i],
+                    'output_text': label_texts[i],
                 })
                     
     elif data_name == "Xpersona": # Too low Quality
@@ -435,16 +431,16 @@ def preprocess_dataset(data_name, task_family=None):
     elif data_name == "common_sense":
         file_object = open(f"{DATA_PATH}/common_sense/ko_wiki_v1_squad.json", "rb")
         datasets = json.loads(file_object.read().decode('utf-8'))["data"]
-        input_text, label = [], []
+        input_texts, label_texts = [], []
         for data in datasets:
             paragraph = data["paragraphs"][0]
             for qa in paragraph["qas"]:
-                input_text.append(f"질의: {qa['question']} 제목: {data['title']} 본문: {paragraph['context']}".strip())
-                label.append(qa['answers'][0]['text'].strip())
+                input_texts.append(f"질의: {qa['question']} 제목: {data['title']} 본문: {paragraph['context']}".strip())
+                label_texts.append(qa['answers'][0]['text'].strip())
         file_object.close()
                 
-        input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-        label_ids = tokenizer(label, add_special_tokens=False).input_ids
+        input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+        label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
         for i in range(len(input_text_ids)):
             all_data.append({
@@ -452,8 +448,8 @@ def preprocess_dataset(data_name, task_family=None):
                 "task_family": "question answering",
                 'input_ids': input_text_ids[i],
                 'output_ids': label_ids[i],
-                'input_text': input_text[i],
-                'output_text': label[i],
+                'input_text': input_texts[i],
+                'output_text': label_texts[i],
             })
             
     elif data_name == "mindslab_mrc":
@@ -465,18 +461,18 @@ def preprocess_dataset(data_name, task_family=None):
             file_object = open(file_name, "rb")
             datasets = json.loads(file_object.read().decode('utf-8'))["data"]
             file_object.close()
-            input_text, label = [], []
+            input_texts, label_texts = [], []
             for data in datasets:
                 paragraph = data["paragraphs"][0]
                 for qa in paragraph["qas"]:
-                    input_text.append(f"질의: {qa['question']} 제목: {data['title']} 본문: {paragraph['context']}") # title is not article's title, instead it seems raw file name
+                    input_texts.append(f"질의: {qa['question']} 제목: {data['title']} 본문: {paragraph['context']}") # title is not article's title, instead it seems raw file name
                     if 'answers' in qa.keys():
-                        label.append(qa['answers'][0]['text'])
+                        label_texts.append(qa['answers'][0]['text'])
                     else:
-                        label.append("정답없음")
+                        label_texts.append("정답없음")
             
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-            label_ids = tokenizer(label, add_special_tokens=False).input_ids
+            input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+            label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
             for i in range(len(input_text_ids)):
                 all_data.append({
@@ -484,8 +480,8 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": "question answering",
                     'input_ids': input_text_ids[i],
                     'output_ids': label_ids[i],
-                    'input_text': input_text[i],
-                    'output_text': label[i],
+                    'input_text': input_texts[i],
+                    'output_text': label_texts[i],
                 })
             pbar.update(1)
         pbar.close()
@@ -542,13 +538,13 @@ def preprocess_dataset(data_name, task_family=None):
         pbar = tqdm(total = len(files))
         for data_file in files:
             df = pd.read_excel(data_file, header=0)
-            input_text, label = [], []
+            input_texts, label_texts = [], []
             for i in range(len(df['원문'])):
-                input_text.append(df['원문'][i].strip())
-                label.append(df['번역문'][i].strip())
+                input_texts.append(df['원문'][i].strip())
+                label_texts.append(df['번역문'][i].strip())
                 
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-            label_ids = tokenizer(label, add_special_tokens=False).input_ids
+            input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+            label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
             for i in range(len(input_text_ids)):
                 all_data.append({
@@ -556,8 +552,8 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": "translation (ko->en)",
                     'input_ids': input_text_ids[i],
                     'output_ids': label_ids[i],
-                    'input_text': input_text[i],
-                    'output_text': label[i],
+                    'input_text': input_texts[i],
+                    'output_text': label_texts[i],
                 })
                 
                 all_data.append({
@@ -565,8 +561,8 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": "translation (en->ko)",
                     'input_ids': label_ids[i],
                     'output_ids': input_text_ids[i],
-                    'input_text': label[i],
-                    'output_text': input_text[i],
+                    'input_text': label_texts[i],
+                    'output_text': input_texts[i],
                 })
                 
             pbar.update(1)
@@ -584,10 +580,10 @@ def preprocess_dataset(data_name, task_family=None):
             sentiment = df['감정_대분류']
             convs = df[conv_header]
             pbar = tqdm(total = len(df['감정_대분류']))
-            chat_logs, label = [], []
+            chat_logs, label_texts = [], []
             for i in range(len(df['감정_대분류'])):
                 chat_logs.append(convs.iloc[i].to_list())#[::2] + convs.iloc[i].to_list()[1::2]
-                label.append(sentiment[i])
+                label_texts.append(sentiment[i])
                 
                 for j, c in enumerate(chat_logs):
                     if c == c:
@@ -612,7 +608,7 @@ def preprocess_dataset(data_name, task_family=None):
                     })
 
             if task_family == "classification":
-                label_ids = tokenizer(label, add_special_tokens=False).input_ids
+                label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
                 for j in range(1, len(chat_logs_tok)):
                     all_data.append({
                         "data_name": data_name,
@@ -620,7 +616,7 @@ def preprocess_dataset(data_name, task_family=None):
                         'input_ids': chat_logs_tok[j],
                         'output_ids': label_ids[j],
                         'input_text': ' '.join(chat_logs),
-                        'output_text': label,
+                        'output_text': label_texts,
                     })
                 pbar.update(1)
             pbar.close()
@@ -631,13 +627,13 @@ def preprocess_dataset(data_name, task_family=None):
         pbar = tqdm(total = len(files))
         for data_file in files:
             df = pd.read_csv(data_file, header=0)
-            input_text, label = [], []
+            input_texts, label_texts = [], []
             for i in range(len(df['한국어'])):
-                input_text.append(df['한국어'][i].strip())
-                label.append(df['영어'][i].strip())
+                input_texts.append(df['한국어'][i].strip())
+                label_texts.append(df['영어'][i].strip())
                 
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-            label_ids = tokenizer(label, add_special_tokens=False).input_ids
+            input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+            label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
             
             for i in range(len(input_text_ids)):
                 all_data.append({
@@ -645,8 +641,8 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": "translation (ko->en)",
                     'input_ids': input_text_ids[i],
                     'output_ids': label_ids[i],
-                    'input_text': input_text[i],
-                    'output_text': label[i],
+                    'input_text': input_texts[i],
+                    'output_text': label_texts[i],
                 })
                 
                 all_data.append({
@@ -654,8 +650,8 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": "translation (en->ko)",
                     'input_ids': label_ids[i],
                     'output_ids': input_text_ids[i],
-                    'input_text': label[i],
-                    'output_text': input_text[i],
+                    'input_text': label_texts[i],
+                    'output_text': input_texts[i],
                 })
                 
             pbar.update(1)
@@ -668,19 +664,19 @@ def preprocess_dataset(data_name, task_family=None):
         for i, file_name in enumerate(files):
             file_object = open(f"{file_name}", "rb")
             datasets = json.loads(file_object.read().decode('utf-8'))["documents"]
-            input_text, label_ext, label_abs = [], [], []
+            input_texts, label_ext, label_abs = [], [], []
             for data in datasets:
 #                 contents = [ d[0]['sentence'] for d in data['text'] ]
                 contents = []
                 for d in data['text']:
                     for dd in d:
                         contents.append(dd['sentence'].strip())
-                input_text.append(f"제목: {data['title']} 본문: {' '.join(contents)}")
+                input_texts.append(f"제목: {data['title']} 본문: {' '.join(contents)}")
                 label_ext.append(' '.join([ contents[i] for i in data['extractive'] if i is not None ]))
                 label_abs.append(data['abstractive'][0].strip())
             file_object.close()
             
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
+            input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
             label_ext_ids = tokenizer(label_ext, add_special_tokens=False).input_ids
             label_abs_ids = tokenizer(label_abs, add_special_tokens=False).input_ids
             
@@ -690,7 +686,7 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": "extractive summarization",
                     'input_ids': input_text_ids[j],
                     'output_ids': label_ext_ids[j],
-                    'input_text': input_text[j],
+                    'input_text': input_texts[j],
                     'output_text': label_ext[j],
                 })
                     
@@ -699,7 +695,7 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": "abstractive summarization",
                     'input_ids': input_text_ids[j],
                     'output_ids': label_abs_ids[j],
-                    'input_text': input_text[j],
+                    'input_text': input_texts[j],
                     'output_text': label_abs[j],
                 })
             pbar.update(1)
@@ -713,17 +709,17 @@ def preprocess_dataset(data_name, task_family=None):
                 file_object = open(f"{file_name}", "rb")
                 datasets = json.loads(file_object.read().decode('utf-8'))['data']
                 pbar = tqdm(total = len(datasets))
-                input_text, label_abs, label_ext = [], [], []
+                input_texts, label_abs, label_ext = [], [], []
                 for data in datasets:
                     if f"논문요약" in file_name:
-                        input_text.append(data["summary_entire"][0]['orginal_text'].strip())
+                        input_texts.append(data["summary_entire"][0]['orginal_text'].strip())
                         label_abs.append(data["summary_entire"][0]['summary_text'].strip())
                         
-                    input_text.append(data["summary_section"][0]['orginal_text'].strip())
+                    input_texts.append(data["summary_section"][0]['orginal_text'].strip())
                     label_ext.append(data["summary_section"][0]['summary_text'].strip())
                 file_object.close()
                 
-                input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
+                input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
                 label_ext_ids = tokenizer(label_ext, add_special_tokens=False).input_ids
                 label_abs_ids = tokenizer(label_abs, add_special_tokens=False).input_ids
                 
@@ -733,7 +729,7 @@ def preprocess_dataset(data_name, task_family=None):
                         "task_family": "abstractive summarization",
                         'input_ids': input_text_ids[j],
                         'output_ids': label_abs_ids[j],
-                        'input_text': input_text[j],
+                        'input_text': input_texts[j],
                         'output_text': label_abs[j],
                     })
 
@@ -742,7 +738,7 @@ def preprocess_dataset(data_name, task_family=None):
                         "task_family": "extractive summarization",
                         'input_ids': input_text_ids[j],
                         'output_ids': label_ext_ids[j],
-                        'input_text': input_text[j],
+                        'input_text': input_texts[j],
                         'output_text': label_ext[j],
                     })
                         
@@ -756,15 +752,15 @@ def preprocess_dataset(data_name, task_family=None):
             for data_file in files:
                 file_object = open(f"{data_file}", "rb")
                 datasets = json.loads(file_object.read().decode('utf-8'))["data"]
-                input_text, label = [], []
+                input_texts, label_texts = [], []
                 for data in datasets:
                     paragraph = data["paragraphs"][0]
                     for qa in paragraph["qas"]:
-                        input_text.append(f"질의: {qa['question'].strip()} 제목: {data['title'].strip()} 본문: {paragraph['context'].strip()}")
-                        label.append('정답없음' if qa['is_impossible'] else qa['answers'][0]['text'])
+                        input_texts.append(f"질의: {qa['question'].strip()} 제목: {data['title'].strip()} 본문: {paragraph['context'].strip()}")
+                        label_texts.append('정답없음' if qa['is_impossible'] else qa['answers'][0]['text'])
 
-                input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-                label_ids = tokenizer(label, add_special_tokens=False).input_ids
+                input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+                label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
                 for j in range(len(input_text_ids)):
                     all_data.append({
@@ -772,8 +768,8 @@ def preprocess_dataset(data_name, task_family=None):
                         "task_family": "question answering",
                         'input_ids': input_text_ids[j],
                         'output_ids': label_ids[j],
-                        'input_text': input_text[j],
-                        'output_text': label[j],
+                        'input_text': input_texts[j],
+                        'output_text': label_texts[j],
                     })
                 pbar.update(1)
             pbar.close()
@@ -782,19 +778,19 @@ def preprocess_dataset(data_name, task_family=None):
         file_path = f"{DATA_PATH}/{data_name}/"
         files = [ os.path.join(path, name) for path, subdirs, files in os.walk(file_path) for name in files ]
         pbar = tqdm(total = len(files))
-        input_text, label = [], []
+        input_texts, label_texts = [], []
         for file_name in files: # 1 data per 1 file
             file_object = open(f"{file_name}", "rb")
             datasets = json.loads(file_object.read().decode('utf-8'))
             title = datasets['doc_name'].strip() if "doc_name" in datasets.keys() else ''
-            input_text.append(f"제목: {title} 본문: {datasets['passage'].strip()}")
-            label.append(datasets['summary'].strip())
+            input_texts.append(f"제목: {title} 본문: {datasets['passage'].strip()}")
+            label_texts.append(datasets['summary'].strip())
             file_object.close()
             pbar.update(1)
         pbar.close()
                 
-        input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-        label_ids = tokenizer(label, add_special_tokens=False).input_ids
+        input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+        label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
                 
         for j in range(len(input_text_ids)):         
             all_data.append({
@@ -802,10 +798,10 @@ def preprocess_dataset(data_name, task_family=None):
                 "task_family": "abstractive summarization",
                 'input_ids': input_text_ids[j],
                 'output_ids': label_ids[j],
-                'input_text': input_text[j],
-                'output_text': label[j],
+                'input_text': input_texts[j],
+                'output_text': label_texts[j],
             })
-    
+
     elif data_name == "ai_hub_callcenter_dialogue":
             file_path = f"{DATA_PATH}/{data_name}/"
             files = [ file_path + f for f in os.listdir(file_path) ]
@@ -985,13 +981,13 @@ def preprocess_dataset(data_name, task_family=None):
         for data_file in files:
             df = pd.read_csv(data_file, header=0)
             pbar = tqdm(total = len(df['ko']))
-            input_text, label = [], []
+            input_texts, label_texts = [], []
             for i in range(len(df['ko'])):
-                input_text.append(df['ko'][i].strip())
-                label.append(df['en'][i].strip())
+                input_texts.append(df['ko'][i].strip())
+                label_texts.append(df['en'][i].strip())
                 
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-            label_ids = tokenizer(label_ext, add_special_tokens=False).input_ids
+            input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+            label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
             for j in range(len(input_text_ids)):
                 all_data.append({
@@ -999,8 +995,8 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": "translation (ko->en)",
                     'input_ids': input_text_ids[j],
                     'output_ids': label_ids[j],
-                    'input_text': input_text[j],
-                    'output_text': label[j],
+                    'input_text': input_texts[j],
+                    'output_text': label_texts[j],
                 })
                 
                 all_data.append({
@@ -1008,8 +1004,8 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": "translation (en->ko)",
                     'input_ids': label_ids[j],
                     'output_ids': input_text_ids[j],
-                    'input_text': label[j],
-                    'output_text': input_text[j],
+                    'input_text': label_texts[j],
+                    'output_text': input_texts[j],
                 })
 
                 pbar.update(1)
@@ -1025,13 +1021,13 @@ def preprocess_dataset(data_name, task_family=None):
         pbar = tqdm(total = len(files))
         for data_file in files:
             df = pd.read_csv(data_file, header=0)
-            input_text, label = [], []
+            input_texts, label_texts = [], []
             for i in range(len(df['한국어'])):
-                input_text.append(df['한국어'][i].strip())
-                label.append(df[target_lang][i].strip())
+                input_texts.append(df['한국어'][i].strip())
+                label_texts.append(df[target_lang][i].strip())
                 
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-            label_ids = tokenizer(label, add_special_tokens=False).input_ids
+            input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+            label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
             
             for j in range(len(input_text_ids)):
                 all_data.append({
@@ -1039,8 +1035,8 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": f"translation (ko->{target_code})",
                     'input_ids': input_text_ids[j],
                     'output_ids': label_ids[j],
-                    'input_text': input_text[j],
-                    'output_text': label[j],
+                    'input_text': input_texts[j],
+                    'output_text': label_texts[j],
                 })
                 
                 all_data.append({
@@ -1048,8 +1044,8 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": f"translation ({target_code}->ko)",
                     'input_ids': label_ids[j],
                     'output_ids': input_text_ids[j],
-                    'input_text': label[j],
-                    'output_text': input_text[j],
+                    'input_text': label_texts[j],
+                    'output_text': input_texts[j],
                 })
                 
             pbar.update(1)
@@ -1061,13 +1057,13 @@ def preprocess_dataset(data_name, task_family=None):
         for data_file in files:
             df = pd.read_excel(data_file, header=0)
             pbar = tqdm(total = len(df['문장']))
-            input_text, label = [], []
+            input_texts, label_texts = [], []
             for i in range(len(df['문장'])):
-                input_text.append(df['문장'][i].strip())
-                label.append(df["의도 (Intention)"][i].strip())
+                input_texts.append(df['문장'][i].strip())
+                label_texts.append(df["의도 (Intention)"][i].strip())
                 
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-            label_ids = tokenizer(label, add_special_tokens=False).input_ids
+            input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+            label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
             
             for j in range(len(input_text_ids)):
                 all_data.append({
@@ -1075,8 +1071,8 @@ def preprocess_dataset(data_name, task_family=None):
                     "task_family": "classification",
                     'input_ids': input_text_ids[j],
                     'output_ids': label_ids[j],
-                    'input_text': input_text[j],
-                    'output_text': label[j],
+                    'input_text': input_texts[j],
+                    'output_text': label_texts[j],
                 })
                 pbar.update(1)
             pbar.close()
@@ -1160,7 +1156,7 @@ def preprocess_dataset(data_name, task_family=None):
             file_path = f"{DATA_PATH}/{data_name}/{data_split}/"
             files = [ os.path.join(path, name) for path, subdirs, files in os.walk(file_path) for name in files ]
             pbar = tqdm(total = len(files))
-            input_text, label = [], []
+            input_texts, label_texts = [], []
             for file_name in files:
                 file_object = open(f"{file_name}", "rb")
                 datasets = json.loads(file_object.read().decode('utf-8'))
@@ -1171,22 +1167,22 @@ def preprocess_dataset(data_name, task_family=None):
                 text = '\n'.join(text)
                 text = text.replace('#@문장구분#', '\n').replace(' .\n', '.\n').replace('.\n ', '.\n').replace('\n\n', '\n')
                 text = text.replace(' \n', '\n').replace('\n ', '\n').strip()
-                input_text.append(text)
-                label.append(str(np.round(datasets['score']['essay_scoreT_avg'], 1)))
+                input_texts.append(text)
+                label_texts.append(str(np.round(datasets['score']['essay_scoreT_avg'], 1)))
                 pbar.update(1)
                 #####
                 
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-            label_ids = tokenizer(label, add_special_tokens=False).input_ids
+            input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+            label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
             
             for j in range(len(input_text_ids)):
                 all_data.append({
                     "data_name": data_name,
                     "task_family": "classification",
-                    'input_ids': input_text[j],
+                    'input_ids': input_texts[j],
                     'output_ids': label_ids[j],
-                    'input_text': input_text[j],
-                    'output_text': label[j],
+                    'input_text': input_texts[j],
+                    'output_text': label_texts[j],
                 })
             pbar.close()
     
@@ -1196,7 +1192,7 @@ def preprocess_dataset(data_name, task_family=None):
             files = [ os.path.join(path, name) for path, subdirs, files in os.walk(file_path) for name in files ]
             pbar = tqdm(total = len(files))
             for file_name in files:
-                input_text, label = [], []
+                input_texts, label_texts = [], []
                 file_object = open(f"{file_name}", "rb")
                 try:
                     datasets = json.loads(file_object.read().decode('utf-8'))
@@ -1221,20 +1217,20 @@ def preprocess_dataset(data_name, task_family=None):
                     task_family += "cn)"
                     
                 for data in datasets:
-                    input_text.append(data['원문'])
-                    label.append(data['최종번역문'])
+                    input_texts.append(data['원문'])
+                    label_texts.append(data['최종번역문'])
                     
-                input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-                label_ids = tokenizer(label, add_special_tokens=False).input_ids
+                input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+                label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
                 
                 for j in range(len(input_text_ids)):
                     all_data.append({
                         "data_name": data_name,
                         "task_family": task_family,
                         'input_ids': input_text_ids[j],
-                        'output_ids': label[j],
-                        'input_text': input_text[j],
-                        'output_text': label[j],
+                        'output_ids': label_texts[j],
+                        'input_text': input_texts[j],
+                        'output_text': label_texts[j],
                     })
                 pbar.update(1)
             pbar.close()
@@ -1279,13 +1275,13 @@ def preprocess_dataset(data_name, task_family=None):
                 file_object = open(f"{file_name}", "rb")
                 datasets = json.loads(file_object.read().decode('utf-8'))["labeled_data"]
                 file_object.close()
-                input_text, label = [], []
+                input_texts, label_texts = [], []
                 for data in datasets:
-                    input_text.append(f"title: {data['invention_title_eng']}\nabstract: {data['astrt_cont_eng']}\nclaim: {data['claim_eng']}")
-                    label.append(f"제목: {data['invention_title_kor']}\n초록: {data['astrt_cont_kor']}\n청구항: {data['claim_kor']}")
+                    input_texts.append(f"title: {data['invention_title_eng']}\nabstract: {data['astrt_cont_eng']}\nclaim: {data['claim_eng']}")
+                    label_texts.append(f"제목: {data['invention_title_kor']}\n초록: {data['astrt_cont_kor']}\n청구항: {data['claim_kor']}")
                 
-                input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-                label_ids = tokenizer(label, add_special_tokens=False).input_ids
+                input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+                label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
                 
                 for j in range(len(input_text_ids)):
                     all_data.append({
@@ -1293,8 +1289,8 @@ def preprocess_dataset(data_name, task_family=None):
                         "task_family": "translation (en->ko)",
                         'input_ids': input_text_ids[j],
                         'output_ids': label_ids,
-                        'input_text': input_text[j],
-                        'output_text': label[j],
+                        'input_text': input_texts[j],
+                        'output_text': label_texts[j],
                     })
                     
                     all_data.append({
@@ -1302,8 +1298,8 @@ def preprocess_dataset(data_name, task_family=None):
                         "task_family": "translation (ko->en)",
                         'input_ids': label_ids[j],
                         'output_ids': input_text_ids[j],
-                        'input_text': label[j],
-                        'output_text': input_text[j],
+                        'input_text': label_texts[j],
+                        'output_text': input_texts[j],
                     })
                 pbar.update(1)
             pbar.close()
@@ -1322,14 +1318,14 @@ def preprocess_dataset(data_name, task_family=None):
                     pbar.update(1)
                     continue
                 file_object.close()
-                input_text, label = [], []
+                input_texts, label_texts = [], []
                 for data in datasets:
                     for qa in data['paragraphs'][0]['qas']:
-                        input_text.append(f"질의: {qa['question']} 제목: {data['doc_title']} 본문: {data['paragraphs'][0]['context']}")
-                        label.append("" if qa['is_impossible'] else qa['answers']['text'])
+                        input_texts.append(f"질의: {qa['question']} 제목: {data['doc_title']} 본문: {data['paragraphs'][0]['context']}")
+                        label_texts.append("" if qa['is_impossible'] else qa['answers']['text'])
 
-                input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-                label_ids = tokenizer(label, add_special_tokens=False).input_ids
+                input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+                label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
                 for j in range(len(input_text_ids)):
                     all_data.append({
@@ -1337,8 +1333,8 @@ def preprocess_dataset(data_name, task_family=None):
                         "task_family": "question answering",
                         'input_ids': input_text_ids[j],
                         'output_ids': label_ids[j],
-                        'input_text': input_text[j],
-                        'output_text': label[j],
+                        'input_text': input_texts[j],
+                        'output_text': label_texts[j],
                     })
                 pbar.update(1)
             pbar.close()
@@ -1381,13 +1377,13 @@ def preprocess_dataset(data_name, task_family=None):
             file_path = f"{DATA_PATH}/{data_name}/{data_split}/"
             files = [ os.path.join(path, name) for path, subdirs, files in os.walk(file_path) for name in files ]
             pbar = tqdm(total = len(files))
-            input_text, summary1, summary2, summary3 = [], [], [], []
+            input_texts, summary1, summary2, summary3 = [], [], [], []
             for file_name in files:
                 file_object = open(f"{file_name}", "rb")
                 datasets = json.loads(file_object.read().decode('utf-8'))
                 file_object.close()
                 
-                input_text.append(f"제목: {datasets['Meta(Acqusition)']['doc_name']}\n본문: {datasets['Meta(Refine)']['passage']}")
+                input_texts.append(f"제목: {datasets['Meta(Acqusition)']['doc_name']}\n본문: {datasets['Meta(Refine)']['passage']}")
                 for k, v in datasets['Annotation'].items():
                     # summary1 is abstractive
                     if k == "summary1":
@@ -1397,7 +1393,7 @@ def preprocess_dataset(data_name, task_family=None):
                     elif k == "summary3":
                         summary3.append(v.strip() if v != "null" and v is not None else "")
                 
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
+            input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
             summary1_ids = tokenizer(summary1, add_special_tokens=False).input_ids
             summary2_ids = tokenizer(summary2, add_special_tokens=False).input_ids
             summary3_ids = tokenizer(summary3, add_special_tokens=False).input_ids
@@ -1409,7 +1405,7 @@ def preprocess_dataset(data_name, task_family=None):
                         "task_family": "abstractive summarization",
                         'input_ids': input_text_ids[j],
                         'output_ids': summary1_ids[j],
-                        'input_text': input_text[j],
+                        'input_text': input_texts[j],
                         'output_text': summary1[j],
                     })
 
@@ -1419,7 +1415,7 @@ def preprocess_dataset(data_name, task_family=None):
                         "task_family": "abstractive summarization",
                         'input_ids': input_text_ids[j],
                         'output_ids': summary2_ids[j],
-                        'input_text': input_text[j],
+                        'input_text': input_texts[j],
                         'output_text': summary2[j],
                     })
 
@@ -1429,7 +1425,7 @@ def preprocess_dataset(data_name, task_family=None):
                         "task_family": "abstractive summarization",
                         'input_ids': input_text_ids[j],
                         'output_ids': summary3_ids[j],
-                        'input_text': input_text[j],
+                        'input_text': input_texts[j],
                         'output_text': summary3[j],
                     })
                     
@@ -1441,13 +1437,13 @@ def preprocess_dataset(data_name, task_family=None):
             file_path = f"{DATA_PATH}/{data_name}/{data_split}/"
             files = [ os.path.join(path, name) for path, subdirs, files in os.walk(file_path) for name in files ]
             pbar = tqdm(total = len(files))
-            input_text, summary1, summary2, summary3 = [], [], [], []
+            input_texts, summary1, summary2, summary3 = [], [], [], []
             for file_name in files:
                 file_object = open(f"{file_name}", "rb")
                 datasets = json.loads(file_object.read().decode('utf-8'))
                 file_object.close()
                 
-                input_text.append(f"제목: {datasets['Meta']['doc_name']}\n본문: {datasets['Meta']['passage']}")
+                input_texts.append(f"제목: {datasets['Meta']['doc_name']}\n본문: {datasets['Meta']['passage']}")
                 for k, v in datasets['Annotation'].items():
                     # summary1 is abstractive
                     if k == "Summary1":
@@ -1459,7 +1455,7 @@ def preprocess_dataset(data_name, task_family=None):
                 pbar.update(1)
             pbar.close()
                 
-            input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
+            input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
             summary1_ids = tokenizer(summary1, add_special_tokens=False).input_ids
             summary2_ids = tokenizer(summary2, add_special_tokens=False).input_ids
             summary3_ids = tokenizer(summary3, add_special_tokens=False).input_ids
@@ -1472,7 +1468,7 @@ def preprocess_dataset(data_name, task_family=None):
                         "task_family": "abstractive summarization",
                         'input_ids': input_text_ids[j],
                         'output_ids': summary1_ids[j],
-                        'input_text': input_text[j],
+                        'input_text': input_texts[j],
                         'output_text': summary1[j],
                     })
 
@@ -1482,7 +1478,7 @@ def preprocess_dataset(data_name, task_family=None):
                         "task_family": "abstractive summarization",
                         'input_ids': input_text_ids[j],
                         'output_ids': summary2_ids[j],
-                        'input_text': input_text[j],
+                        'input_text': input_texts[j],
                         'output_text': summary2[j],
                     })
 
@@ -1492,7 +1488,7 @@ def preprocess_dataset(data_name, task_family=None):
                         "task_family": "abstractive summarization",
                         'input_ids': input_text_ids[j],
                         'output_ids': summary3_ids[j],
-                        'input_text': input_text[j],
+                        'input_text': input_texts[j],
                         'output_text': summary3[j],
                     })
                 pbar.update(1)
@@ -1531,15 +1527,15 @@ def preprocess_dataset(data_name, task_family=None):
                     print(datasets[0]['T_Code'][-2:]) # Nothing
                     return
                     
-                input_text, label = [], []
+                input_texts, label_texts = [], []
                 for data in datasets:
-                    if label == 0.0: # Filter out
+                    if label_texts == 0.0: # Filter out
                         continue
-                    input_text.append(str(data['원문']).strip())
-                    label.append(str(data['최종번역문']).strip())
+                    input_texts.append(str(data['원문']).strip())
+                    label_texts.append(str(data['최종번역문']).strip())
                         
-                input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-                label_ids = tokenizer(label, add_special_tokens=False).input_ids
+                input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+                label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
                 
                 for j in range(len(input_text_ids)):
                     all_data.append({
@@ -1547,8 +1543,8 @@ def preprocess_dataset(data_name, task_family=None):
                         "task_family": task_family,
                         'input_ids': input_text_ids[j],
                         'output_ids': label_ids[j],
-                        'input_text': input_text[j],
-                        'output_text': label[j],
+                        'input_text': input_texts[j],
+                        'output_text': label_texts[j],
                     })
                 pbar.update(1)
             pbar.close()
@@ -1562,13 +1558,13 @@ def preprocess_dataset(data_name, task_family=None):
                 file_object = open(f"{file_name}", "rb")
                 datasets = json.loads(file_object.read().decode('utf-8'))['documents']
                 file_object.close()
-                input_text, label = [], []
+                input_texts, label_texts = [], []
                 for data in datasets:
-                    input_text.append(data['Q_refined'].strip())
-                    label.append(data['labeling']['intent']['category'].strip())
+                    input_texts.append(data['Q_refined'].strip())
+                    label_texts.append(data['labeling']['intent']['category'].strip())
                     
-                input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-                label_ids = tokenizer(label, add_special_tokens=False).input_ids
+                input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+                label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
                 
                 for j in range(len(input_text_ids)):
                     all_data.append({
@@ -1576,8 +1572,8 @@ def preprocess_dataset(data_name, task_family=None):
                         "task_family": 'classification',
                         'input_ids': input_text_ids[j],
                         'output_ids': label_ids[j],
-                        'input_text': input_text[j],
-                        'output_text': label[j],
+                        'input_text': input_texts[j],
+                        'output_text': label_texts[j],
                     })
                 pbar.update(1)
             pbar.close()
@@ -1590,7 +1586,7 @@ def preprocess_dataset(data_name, task_family=None):
             file_path = f"{DATA_PATH}/{data_name}/{data_split}/"
             files = [ os.path.join(path, name) for path, subdirs, files in os.walk(file_path) for name in files ]
             pbar = tqdm(total = len(files))
-            input_text, label = [], []
+            input_texts, label_texts = [], []
             for file_name in files:
                 file_object = open(f"{file_name}", "rb")
                 datasets = json.loads(file_object.read().decode('utf-8'))['data']
@@ -1600,16 +1596,16 @@ def preprocess_dataset(data_name, task_family=None):
                 
                 if source_lang != 'ko':
                     for data in datasets:
-                        input_text.append(data[f'{source_lang}_original'].strip())
-                        label.append(data['ko'].strip())
+                        input_texts.append(data[f'{source_lang}_original'].strip())
+                        label_texts.append(data['ko'].strip())
                 
                 else:
                     for data in datasets:
-                        input_text.append(data[f'{source_lang}_original'].strip())
-                        label.append(data[target_lang].strip())
+                        input_texts.append(data[f'{source_lang}_original'].strip())
+                        label_texts.append(data[target_lang].strip())
                         
-                input_text_ids = tokenizer(input_text, add_special_tokens=False).input_ids
-                label_ids = tokenizer(label, add_special_tokens=False).input_ids
+                input_text_ids = tokenizer(input_texts, add_special_tokens=False).input_ids
+                label_ids = tokenizer(label_texts, add_special_tokens=False).input_ids
 
                 for j in range(len(input_text_ids)):
                     all_data.append({
@@ -1617,8 +1613,8 @@ def preprocess_dataset(data_name, task_family=None):
                         "task_family": f'translation ({source_lang}->{target_lang})',
                         'input_ids': input_text_ids[j],
                         'output_ids': label_ids[j],
-                        'input_text': input_text[j],
-                        'output_text': label[j],
+                        'input_text': input_texts[j],
+                        'output_text': label_texts[j],
                     })
                 pbar.update(1)
             pbar.close()

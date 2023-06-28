@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package flan;
+
+
+service FlanProcessingDataset {
+  rpc Get(GetReq) returns (GetResp) {}
+  rpc Metadata(MetadataReq) returns (MetadataResp) {}
+}
+
+message GetReq {
+  int64 index = 1;
+}
+
+message GetResp {
+  repeated int64 input_ids = 1;
+  repeated int64 target_ids = 2;
+}
+
+message MetadataReq {
+}
+
+message MetadataResp {
+  int64 total = 1;
+}
