@@ -1,6 +1,6 @@
-# pko-t5
+[한국어](README.md)
 
-[KOREAN](README.md)
+# pko-t5
 
 This repository, pko-T5 is trained [T5 v1.1](https://github.com/google-research/text-to-text-transfer-transformer/blob/84f8bcc14b5f2c03de51bd3587609ba8f6bbd1cd/released_checkpoints.md) model for korean only.
 The model is trained on large-scale korean corpus without english.
@@ -8,6 +8,9 @@ And then, we would be expected the model is improved performance than mT5 or byT
 
 We use pretrained BBPE for tokenization in Korean without OOV was used instead of sentencepiece.
 And, we parse various Korean data (나무위키, 위키피디아, 모두의말뭉치, ...) to the tokenizer. The data is applied to the task for T5 pretraining with span corruption task.
+
+- Flan T5: [Source Code](https://github.com/paust-team/pko-t5/tree/main/pkot5/flan/README.md) / [Model](https://huggingface.co/paust/pko-flan-t5-large)
+- Chat T5: [Source Code](https://github.com/paust-team/pko-t5/tree/main/pkot5/chat/README.md) / [Model](https://huggingface.co/paust/pko-chat-t5-large)
 
 ## Download Model
 | Model        | transformers                                               |

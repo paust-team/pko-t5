@@ -1,12 +1,15 @@
-# pko-t5
-
 [ENGLISH](README_en.md)
+
+# pko-t5
 
 pko-t5 는 한국어 전용 데이터로 학습한 [T5 v1.1](https://github.com/google-research/text-to-text-transfer-transformer/blob/84f8bcc14b5f2c03de51bd3587609ba8f6bbd1cd/released_checkpoints.md)입니다.
 
 한국어를 tokenize 하기 위해서 sentencepiece 대신 OOV 가 없는 BBPE 를 사용했으며 한국어 데이터 (나무위키, 위키피디아, 모두의말뭉치 등..) 를 T5 의 span corruption task 를 사용해서 unsupervised learning 만 적용하여 학습을 진행했습니다.
 
 pko-t5 를 사용하실 때는 실제 task 에 파인튜닝하여 사용하시기 바랍니다.
+
+- Flan T5: [Source Code](https://github.com/paust-team/pko-t5/tree/main/pkot5/flan/README.md) / [Model](https://huggingface.co/paust/pko-flan-t5-large)
+- Chat T5: [Source Code](https://github.com/paust-team/pko-t5/tree/main/pkot5/chat/README.md) / [Model](https://huggingface.co/paust/pko-chat-t5-large)
 
 ## Download Model
 |Model| transformers                                              |
