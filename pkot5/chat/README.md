@@ -15,7 +15,7 @@ Chat T5 는 [pko-flan-t5-large](https://huggingface.co/paust/pko-flan-t5-large) 
 ```python
 from transformers import T5TokenizerFast, T5ForConditionalGeneration
 tokenizer = T5TokenizerFast.from_pretrained("paust/pko-chat-t5-large")
-model = T5ForConditionalGeneration.from_pretrained("paust/pko-chat-t5-largee", device_map='cuda')
+model = T5ForConditionalGeneration.from_pretrained("paust/pko-chat-t5-large", device_map='cuda')
 
 prompt_tpl = "사용자가 한 말을 읽고 그에 질문에 답하거나 명령에 응답하는 비서입니다.\n\n사용자:\n{text}\n\n비서:\n"
 prompt = prompt_tpl.format(text="한국의 수도는 어디인가요?")
