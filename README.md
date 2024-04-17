@@ -2,6 +2,8 @@
 
 # pko-t5
 
+[Blog](https://paust-studio.notion.site/pre-trained-T5-7072a7049e184eb6998b04e588b226e0)
+
 pko-t5 는 한국어 전용 데이터로 학습한 [T5 v1.1](https://github.com/google-research/text-to-text-transfer-transformer/blob/84f8bcc14b5f2c03de51bd3587609ba8f6bbd1cd/released_checkpoints.md)입니다.
 
 한국어를 tokenize 하기 위해서 sentencepiece 대신 OOV 가 없는 BBPE 를 사용했으며 한국어 데이터 (나무위키, 위키피디아, 모두의말뭉치 등..) 를 T5 의 span corruption task 를 사용해서 unsupervised learning 만 적용하여 학습을 진행했습니다.
